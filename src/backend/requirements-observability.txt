@@ -1,0 +1,12 @@
+# 可观测性可选依赖（未安装时 agchat.telemetry 自动降级为 NoOp，不影响业务）
+# 安装：pip install -r requirements-observability.txt
+#
+# 推荐接入 Langfuse（LLM 场景 trace 可视化开箱即用）或 Jaeger/Tempo。
+# 跨服务传播使用 W3C traceparent 头（FastAPI 侧用 fastapi instrumentation 自动注入）。
+
+opentelemetry-api>=1.24.0
+opentelemetry-sdk>=1.24.0
+opentelemetry-exporter-otlp>=1.24.0
+opentelemetry-instrumentation-fastapi>=0.45b0
+prometheus-client>=0.20.0
+aiokafka>=0.10.0

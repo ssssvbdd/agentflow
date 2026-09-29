@@ -1,0 +1,205 @@
+# 服务配置
+server:
+  env: "dev" # prod / test / dev
+  host: "127.0.0.1"
+  port: 7860
+  name: "AgentFlow" # 项目名称
+  version: "1.0.0" # 服务版本号
+
+# 数据库配置：MySQL (请根据实际配置更改 endpoint)
+# 格式：mysql+pymysql://<user>:<password>@<host>:<port>/<database>
+mysql:
+  endpoint: "mysql+pymysql://agentflow:change-me@localhost:3306/agentflow" # 同步连接配置
+  async_endpoint: "mysql+aiomysql://agentflow:change-me@localhost:3306/agentflow" # 异步连接配置
+
+# 缓存配置：Redis
+redis:
+  endpoint: "redis://localhost:6379" # Redis 连接地址
+
+# Kafka 可选：启用后长期记忆抽取事件会先进入 Kafka；未安装/不可用时自动降级本地队列
+kafka:
+  enabled: false
+  bootstrap_servers: "localhost:9092"
+  memory_topic: "agentflow-memory-events"
+
+observability:
+  service_name: "agentflow"
+  prometheus_enabled: true
+  metrics_path: "/metrics"
+  # 示例: "http://localhost:4317"，留空则只做本地 instrumentation
+  otlp_endpoint: ""
+
+# 高并发与可靠性配置
+reliability:
+  # 进程级过载保护：达到上限后快速失败，避免事件循环积压
+  max_active_runs: 100
+  max_active_runs_per_user: 20
+  admission_timeout_seconds: 0.25
+
+  # Redis Lua 令牌桶：控制入口请求速率
+  global_qps_capacity: 300
+  global_qps_refill_rate: 300
+  user_qps_capacity: 60
+  user_qps_refill_rate: 2
+
+  # 单次 SSE 输出预算，防止异常长输出拖垮内存/带宽
+  output_max_bytes: 1048576
+
+  # 工具调用治理：并发池 + 工具/用户双维度限流 + 超时 + 幂等
+  tool_guard:
+    default:
+      max_concurrency: 8
+      acquire_timeout_seconds: 0.5
+      timeout_seconds: 30
+      qps_capacity: 60
+      qps_refill_rate: 10
+      user_qps_capacity: 20
+      user_qps_refill_rate: 2
+      idempotency_ttl_seconds: 3600
+    tools:
+      retrival_knowledge:
+        max_concurrency: 12
+        timeout_seconds: 15
+        qps_capacity: 120
+        qps_refill_rate: 20
+      search_available_tools:
+        max_concurrency: 20
+        timeout_seconds: 5
+        qps_capacity: 200
+        qps_refill_rate: 50
+
+# 多模型服务配置 (LLM、Embedding、Rerank)
+multi_models:
+  # 对话模型配置
+  conversation_model:
+    api_key: ""
+    base_url: "https://ws-8iqu2lgfy2do6t8s.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"
+    model_name: "qwen3.8-flash"
+  # 工具调用/Function Call 模型配置
+  tool_call_model:
+    api_key: ""
+    base_url: "https://ws-8iqu2lgfy2do6t8s.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"
+    model_name: "qwen3.8-flash"
+  # 复杂推理模型配置
+  reasoning_model:
+    api_key: ""
+    base_url: "https://api.deepseek.com/v1"
+    model_name: "deepseek-reasoner"
+  # 文生图模型配置
+  text2image:
+    api_key: ""
+    base_url: "https://dashscope.aliyuncs.com/api/v1/services/aigc/text2image/image-synthesis"
+    model_name: "wanx2.0-t2i-turbo"
+  # 多模态 (视觉) 模型配置
+  qwen_vl:
+    api_key: ""
+    base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    model_name: "qwen-vl-plus"
+
+  # Embedding 模型配置 (用于向量化)
+  embedding:
+    api_key: ""
+    base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    model_name: "text-embedding-v4"
+
+  # Rerank 模型配置 (用于重排序召回结果)
+  rerank:
+    api_key: ""
+    base_url: "https://dashscope.aliyuncs.com/api/v1/services/rerank/text-rerank/text-rerank"
+    model_name: "gte-rerank-v2"
+
+
+# 外部工具 (Tool) 配置
+tools:
+  # 高德地图天气 API 配置
+  weather:
+    api_key: ""
+    endpoint: "https://restapi.amap.com/v3/weather/weatherInfo?parameters"
+  # Tavily 联网搜索 API 配置 (注意配额限制)
+  tavily:
+    api_key: ""
+  # SerpApi 上的 Google Search API 配置
+  google:
+    api_key: ""
+  # 阿里云快递查询 API 配置
+  delivery:
+    api_key: ""
+    endpoint: "https://qyexpress.market.alicloudapi.com/composite/queryexpress"
+  # BoCha 联网搜索 API 配置
+  bocha:
+    api_key: ""
+    endpoint: "https://api.bochaai.com/v1/web-search"
+  # Serply 联网搜索 API 配置（获取 API 密钥: https://serply.io，文档: https://serply.io/docs）
+  serply:
+    api_key: ""
+  # You.com Search & Research API 配置（获取 API 密钥: https://ydc-index.io/docs）
+  youcom:
+    api_key: ""
+    endpoint: "https://ydc-index.io/v1/search"
+
+# RAG (检索增强生成) 配置
+rag:
+  enable_summary: False # 是否对知识库片段进行摘要
+  enable_elasticsearch: False # 是否启用 Elasticsearch 进行关键词搜索
+  enable_ik_analyzer: False # 是否启用 Elasticsearch 的IK分词器
+
+  retrival:
+    top_k: 5  # 知识库召回的最大数量
+    min_score: 0.2 # 知识库召回结果的最小相似度分数阈值
+
+  split:
+    chunk_size: 500 # 知识库文档分块的最大字符数
+    overlap_size: 100 # 文档分块之间的重叠字符数
+
+  # ES数据库配置，主要做关键词召回
+  elasticsearch:
+    hosts: "http://127.0.0.1:9200" # Elasticsearch 连接地址。如果 'enable_elasticsearch' 为 False，则不需要填写。
+
+  # 向量数据库配置 (Vector DB)
+  vector_db:
+    host: "127.0.0.1"
+    port: "19530"
+    mode: "chroma" # 向量库模式: standalone (Milvus), lite (轻量Milvus), chroma (ChromaDB)
+
+# 阿里云对象存储 OSS 配置
+storage:
+  mode: "minio" # or oss
+
+  oss:
+    access_key_id: ""
+    access_key_secret: ""
+    endpoint: "oss-cn-beijing.aliyuncs.com"
+    bucket_name: "agentflow" # OSS 存储桶名称
+    base_url: "" # 按实际 OSS 域名填写
+
+  minio:
+    access_key_id: ""
+    access_key_secret: ""
+    endpoint: "127.0.0.1:9000"
+    bucket_name: "agentflow" # minio 存储桶名称
+    base_url: "http://127.0.0.1:9000/agentflow" # 访问基础 URL
+
+# 默认配置 (如图标 URL, 资源链接)
+default_config:
+  mcp_logo_url: ""
+  tool_logo_url: "" # 工具默认图标 URL
+  agent_logo_url: "" # Agent 默认图标 URL
+  mars_daily_url: "https://news.aibase.com/zh/news" # 外部新闻链接
+  memory_collection_name: "memory" # 记忆存储的集合名称
+
+# 扩展功能：微信配置 (不添加也可正常运行)
+wechat_config:
+  token: ""
+  app_id: ""
+  secret: ""
+
+# 追踪工具 Langfuse 配置 (目前版本可能未应用)
+langfuse:
+  trace_name: "agentflow"
+  host: "https://cloud.langfuse.com"
+  public_key: "" # Langfuse 公钥
+  secret_key: "" # Langfuse 私钥
+  user_id: "" # 用户 ID
+
+# 接口白名单路径
+whitelist_paths: ["/mcp/*"]

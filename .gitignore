@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+.env
+*.env
+node_modules/
+dist/
+*.tsbuildinfo
+*.log
+*.sqlite3
+memory_db/
+vector_db/
+chroma_db/
